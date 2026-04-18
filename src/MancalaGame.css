@@ -106,7 +106,7 @@ h1 {
   margin-bottom: 12px;
   font-size: 2rem;
   color: var(--color-orange);
-  font-family: var(--font-bungee);
+  font-family: var(--font-cinzel);
   text-align: center;
 }
 
@@ -209,12 +209,17 @@ h1 {
 .status-box {
   display: grid;
   gap: 16px;
-  padding: 20px 22px;
+  padding: 20px 28px;
   border-radius: 26px;
   background: rgba(11, 18, 32, 0.9);
   border: 1px solid rgba(245, 245, 220, 0.12);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(20px);
+  width: 100%;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 24px;
 }
 
 .status-box > div {
@@ -249,9 +254,10 @@ h1 {
 
 .board-shell {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) 150px;
-  gap: 18px;
+  grid-template-columns: 140px 1fr 140px;
+  gap: 28px;
   align-items: center;
+  width: 100%;
 }
 
 .mancala-pit {
@@ -259,12 +265,12 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
+  min-height: 340px;
   border-radius: 32px;
   background: linear-gradient(180deg, rgba(26, 43, 76, 0.95), rgba(11, 18, 32, 0.95));
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 12px 28px rgba(0, 0, 0, 0.5), 0 16px 46px rgba(0, 0, 0, 0.35);
-  padding: 20px;
+  padding: 24px;
   backdrop-filter: blur(24px);
   position: relative;
   overflow: hidden;
@@ -308,13 +314,14 @@ h1 {
 .middle-board {
   display: grid;
   grid-template-rows: repeat(2, auto);
-  gap: 14px;
+  gap: 28px;
+  width: 100%;
 }
 
 .pit-row {
   display: grid;
-  grid-template-columns: repeat(6, minmax(80px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 32px;
 }
 
 .pit {
@@ -322,8 +329,8 @@ h1 {
   background: linear-gradient(180deg, rgba(26, 43, 76, 0.92), rgba(11, 18, 32, 0.95));
   border: 1px solid rgba(245, 245, 220, 0.08);
   border-radius: 22px;
-  min-height: 132px;
-  padding: 16px;
+  min-height: 140px;
+  padding: 20px;
   cursor: pointer;
   transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
   display: flex;
@@ -422,6 +429,15 @@ h1 {
   }
 }
 
+@keyframes blink-indicator {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
 .controls {
   margin-top: 24px;
   display: flex;
@@ -496,39 +512,111 @@ h1 {
   fill: currentColor;
 }
 
+.board-base {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 32px;
+  border-radius: 36px;
+  background: linear-gradient(135deg, rgba(11, 18, 32, 0.92), rgba(26, 43, 76, 0.85));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), inset 0 4px 12px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(26px);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 28px;
+}
+
+.board-base::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 20% 80%, rgba(179, 90, 56, 0.08), transparent 30%),
+    radial-gradient(circle at 80% 20%, rgba(46, 125, 50, 0.06), transparent 30%);
+  pointer-events: none;
+}
+
+.board-base .board-shell {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 1200px) {
+  .board-base {
+    padding: 28px;
+  }
+
+  .board-shell {
+    gap: 24px;
+  }
+}
+
 @media (max-width: 860px) {
   .mancala-shell {
     padding: 20px 16px 28px;
   }
 
+  .board-base {
+    padding: 20px;
+  }
+
   .board-shell {
     grid-template-columns: 1fr;
+    gap: 22px;
   }
 
   .mancala-pit {
-    min-height: 220px;
+    min-height: 260px;
+  }
+
+  .middle-board {
+    gap: 20px;
   }
 
   .pit-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+
+  .pit {
+    min-height: 120px;
+    padding: 16px;
   }
 }
 
 @media (max-width: 620px) {
-  .pit-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .board-base {
+    padding: 16px;
+    border-radius: 24px;
+  }
+
+  .board-shell {
+    gap: 16px;
   }
 
   .mancala-pit {
-    min-height: 180px;
+    min-height: 200px;
+    padding: 16px;
+  }
+
+  .pit-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .pit {
-    min-height: 110px;
+    min-height: 100px;
     padding: 14px;
   }
 
   .pit-seeds {
     min-height: 48px;
+    font-size: 1.6rem;
+  }
+
+  .pit-label {
+    font-size: 0.8rem;
   }
 }

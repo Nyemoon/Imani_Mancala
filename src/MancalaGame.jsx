@@ -255,53 +255,55 @@ const MancalaGame = () => {
             <div className="info-box">{infoMessage}</div>
           </div>
 
-          <div className="board-shell">
-            <div className="mancala-pit mancala-large mancala-top">
-              <span className="mancala-title">Mancala P2</span>
-              <span className="seed-count">{board[player2Mancala]}</span>
-            </div>
-
-            <div className="middle-board">
-              <div className="pit-row top-row">
-                {player2Pits.slice().reverse().map((index) => {
-                  const disabled = !isOwnPit(currentPlayer, index) || board[index] === 0 || gameOver;
-                  const isLast = lastMove.index === index;
-                  return (
-                    <button
-                      key={index}
-                      className={`pit ${disabled ? 'pit-disabled' : ''} ${isLast ? 'pit-last-move' : ''}`}
-                      onClick={() => handlePitClick(index)}
-                      disabled={disabled}
-                    >
-                      <span className="pit-label">{`P2-${index - 6}`}</span>
-                      <span className="pit-seeds">{board[index]}</span>
-                    </button>
-                  );
-                })}
+          <div className="board-base">
+            <div className="board-shell">
+              <div className="mancala-pit mancala-large mancala-top">
+                <span className="mancala-title">{playerNames.player2}</span>
+                <span className="seed-count">{board[player2Mancala]}</span>
               </div>
 
-              <div className="pit-row bottom-row">
-                {player1Pits.map((index) => {
-                  const disabled = !isOwnPit(currentPlayer, index) || board[index] === 0 || gameOver;
-                  const isLast = lastMove.index === index;
-                  return (
-                    <button
-                      key={index}
-                      className={`pit ${disabled ? 'pit-disabled' : ''} ${isLast ? 'pit-last-move' : ''}`}
-                      onClick={() => handlePitClick(index)}
-                      disabled={disabled}
-                    >
-                      <span className="pit-label">{`P1-${index + 1}`}</span>
-                      <span className="pit-seeds">{board[index]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+              <div className="middle-board">
+                <div className="pit-row top-row">
+                  {player2Pits.slice().reverse().map((index) => {
+                    const disabled = !isOwnPit(currentPlayer, index) || board[index] === 0 || gameOver;
+                    const isLast = lastMove.index === index;
+                    return (
+                      <button
+                        key={index}
+                        className={`pit ${disabled ? 'pit-disabled' : ''} ${isLast ? 'pit-last-move' : ''}`}
+                        onClick={() => handlePitClick(index)}
+                        disabled={disabled}
+                      >
+                        <span className="pit-label">{`P2-${index - 6}`}</span>
+                        <span className="pit-seeds">{board[index]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-            <div className="mancala-pit mancala-large mancala-bottom">
-              <span className="mancala-title">Mancala P1</span>
-              <span className="seed-count">{board[player1Mancala]}</span>
+                <div className="pit-row bottom-row">
+                  {player1Pits.map((index) => {
+                    const disabled = !isOwnPit(currentPlayer, index) || board[index] === 0 || gameOver;
+                    const isLast = lastMove.index === index;
+                    return (
+                      <button
+                        key={index}
+                        className={`pit ${disabled ? 'pit-disabled' : ''} ${isLast ? 'pit-last-move' : ''}`}
+                        onClick={() => handlePitClick(index)}
+                        disabled={disabled}
+                      >
+                        <span className="pit-label">{`P1-${index + 1}`}</span>
+                        <span className="pit-seeds">{board[index]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mancala-pit mancala-large mancala-bottom">
+                <span className="mancala-title">{playerNames.player1}</span>
+                <span className="seed-count">{board[player1Mancala]}</span>
+              </div>
             </div>
           </div>
 
