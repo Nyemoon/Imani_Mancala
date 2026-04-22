@@ -37,6 +37,8 @@ const MancalaGame = () => {
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState(null);
   const [started, setStarted] = useState(false);
+  const [singlePlayer, setSinglePlayer] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
   const [playerNames, setPlayerNames] = useState({ player1: 'Jogador 1', player2: 'Jogador 2' });
   const [playerInputs, setPlayerInputs] = useState({ player1: '', player2: '' });
   const [infoMessage, setInfoMessage] = useState('Insira os nomes e comece a partida.');
@@ -50,6 +52,11 @@ const MancalaGame = () => {
 
   const isOwnPit = (player, index) => {
     return player === 1 ? PLAYER1_PITS.includes(index) : PLAYER2_PITS.includes(index);
+  };
+
+  const getAvailableMoves = (player, boardState) => {
+    const pits = player === 1 ? PLAYER1_PITS : PLAYER2_PITS;
+    return pits.filter((index) => boardState[index] > 0);
   };
 
   const isPlayerPitRowEmpty = (player, boardState) => {
@@ -107,7 +114,103 @@ const MancalaGame = () => {
     return true;
   };
 
-  const handlePitPress = (index) => {
+  const normalizeGroqContent = (content) => {
+    if (!content) return '';
+    return content.replace(/```json/gi, '').replace(/```/g, '').trim();
+  };
+
+  const selectFallbackAIMove = (boardState) => {
+    const available = getAvailableMoves(2, boardState);
+    if (available.length === 0) return null;
+
+    const moveWithExtraTurn = available.find((pitIndex) => {
+      const stones = boardState[pitIndex];
+      const distanceToOwnMancala = PLAYER2_MANCALA - pitIndex;
+      return stones > 0 && stones % 13 === distanceToOwnMancala % 13;
+    });
+
+    if (moveWithExtraTurn !== undefined) {
+      return moveWithExtraTurn;
+    }
+
+    return available.reduce((bestIndex, candidateIndex) => {
+      if (boardState[candidateIndex] > boardState[bestIndex]) return candidateIndex;
+      return bestIndex;
+    }, available[0]);
+  };
+
+  const getGroqMove = async (boardState) => {
+    const availableMoves = getAvailableMoves(2, boardState);
+    if (availableMoves.length === 0) return null;
+
+    const apiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+    if (!apiKey) {
+      return null;
+    }
+
+    const payload = {
+      model: 'llama-3.1-8b-instant',
+      temperature: 0,
+      max_tokens: 60,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Voce e uma IA de Mancala e deve responder somente JSON valido no formato {"pitIndex": numero}. Nao inclua explicacoes.',
+        },
+        {
+          role: 'user',
+          content: `Escolha a melhor jogada para o Jogador 2 no tabuleiro ${JSON.stringify(
+            boardState
+          )}. Casas validas para jogar: ${JSON.stringify(availableMoves)}.`,
+        },
+      ],
+    };
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      const rawContent = data?.choices?.[0]?.message?.content;
+  const cleanContent = normalizeGroqContent(rawContent);
+
+      let suggestedIndex = null;
+      try {
+        const parsed = JSON.parse(cleanContent);
+        suggestedIndex = Number(parsed?.pitIndex);
+      } catch (_error) {
+        const matchedNumber = cleanContent.match(/\d+/);
+        suggestedIndex = matchedNumber ? Number(matchedNumber[0]) : null;
+      }
+
+      if (!Number.isInteger(suggestedIndex)) {
+        return null;
+      }
+
+      return availableMoves.includes(suggestedIndex) ? suggestedIndex : null;
+    } catch (_error) {
+      return null;
+    }
+  };
+
+  const handlePitPress = (index, options = {}) => {
+    const { fromAI = false } = options;
+
+    if (singlePlayer && currentPlayer === 2 && !fromAI) {
+      return;
+    }
+
     if (gameOver || !isOwnPit(currentPlayer, index) || board[index] === 0) {
       return;
     }
@@ -159,11 +262,48 @@ const MancalaGame = () => {
     }
   };
 
+  useEffect(() => {
+    if (!started || gameOver || !singlePlayer || currentPlayer !== 2) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const playAITurn = async () => {
+      setAiThinking(true);
+      setInfoMessage(`${playerNames.player2} esta pensando...`);
+
+      const boardSnapshot = [...board];
+      const groqMove = await getGroqMove(boardSnapshot);
+      const selectedPit = groqMove ?? selectFallbackAIMove(boardSnapshot);
+
+      if (cancelled) {
+        return;
+      }
+
+      setAiThinking(false);
+
+      if (selectedPit === null) {
+        return;
+      }
+
+      handlePitPress(selectedPit, { fromAI: true });
+    };
+
+    const timerId = setTimeout(playAITurn, 700);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timerId);
+    };
+  }, [board, currentPlayer, gameOver, playerNames.player2, singlePlayer, started]);
+
   const resetGame = () => {
     setBoard(INITIAL_BOARD);
     setCurrentPlayer(Math.random() < 0.5 ? 1 : 2);
     setGameOver(false);
     setWinner(null);
+    setAiThinking(false);
     setLastMove({ index: null, capture: false, extraTurn: false });
     setInfoMessage('Partida reiniciada. Boa sorte!');
   };
@@ -174,6 +314,8 @@ const MancalaGame = () => {
     setCurrentPlayer(1);
     setGameOver(false);
     setWinner(null);
+    setAiThinking(false);
+    setSinglePlayer(false);
     setLastMove({ index: null, capture: false, extraTurn: false });
     setInfoMessage('Atualize os nomes e inicie outra partida.');
     setPlayerInputs(playerNames);
@@ -189,16 +331,41 @@ const MancalaGame = () => {
     setPlayerInputs((previous) => ({ ...previous, [player]: value }));
   };
 
-  const startGame = () => {
+  const startMultiplayerGame = () => {
     const names = {
       player1: playerInputs.player1.trim() || 'Jogador 1',
       player2: playerInputs.player2.trim() || 'Jogador 2',
     };
     const firstPlayer = Math.random() < 0.5 ? 1 : 2;
+    setSinglePlayer(false);
+    setAiThinking(false);
     setPlayerNames(names);
     setStarted(true);
     setCurrentPlayer(firstPlayer);
     setInfoMessage(`Bem-vindo, ${names.player1} e ${names.player2}. ${names[`player${firstPlayer}`]} comeca.`);
+  };
+
+  const startSinglePlayerGame = () => {
+    const humanName = playerInputs.player1.trim() || 'Jogador 1';
+    const names = {
+      player1: humanName,
+      player2: 'Groq IA',
+    };
+    const firstPlayer = Math.random() < 0.5 ? 1 : 2;
+    setSinglePlayer(true);
+    setAiThinking(false);
+    setPlayerNames(names);
+    setStarted(true);
+    setCurrentPlayer(firstPlayer);
+
+    if (!process.env.EXPO_PUBLIC_GROQ_API_KEY) {
+      setInfoMessage(
+        `${humanName}, modo solo iniciado. Chave da Groq ausente; a IA usara estrategia local de fallback.`
+      );
+      return;
+    }
+
+    setInfoMessage(`${humanName}, modo solo iniciado. ${names[`player${firstPlayer}`]} comeca.`);
   };
 
   const gameStatus = useMemo(() => {
@@ -220,7 +387,7 @@ const MancalaGame = () => {
   };
 
   const renderPit = (index, player) => {
-    const disabled = !isOwnPit(currentPlayer, index) || board[index] === 0 || gameOver;
+    const disabled = !isOwnPit(currentPlayer, index) || board[index] === 0 || gameOver || (singlePlayer && currentPlayer === 2);
     const isLast = lastMove.index === index;
 
     return (
@@ -284,6 +451,10 @@ const MancalaGame = () => {
                     />
                   </View>
 
+                  <Text style={styles.startupNote}>
+                    Para IA Groq, defina EXPO_PUBLIC_GROQ_API_KEY no ambiente.
+                  </Text>
+
                   <View style={styles.rulesPanel}>
                     <Text style={styles.rulesTitle}>Regras principais</Text>
                     <Text style={styles.ruleItem}>- 12 casas comecam com 4 sementes; cada Mancala inicia com 0.</Text>
@@ -293,9 +464,21 @@ const MancalaGame = () => {
                     <Text style={styles.ruleItem}>- O jogo termina quando um lado fica sem sementes.</Text>
                   </View>
 
-                  <Pressable style={({ pressed }) => [styles.startButton, pressed && styles.buttonPressed]} onPress={startGame}>
-                    <Text style={styles.startButtonText}>Comecar partida</Text>
-                  </Pressable>
+                  <View style={styles.startButtonsRow}>
+                    <Pressable
+                      style={({ pressed }) => [styles.startButton, styles.startButtonHalf, pressed && styles.buttonPressed]}
+                      onPress={startMultiplayerGame}
+                    >
+                      <Text style={styles.startButtonText}>2 jogadores</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={({ pressed }) => [styles.soloButton, styles.startButtonHalf, pressed && styles.buttonPressed]}
+                      onPress={startSinglePlayerGame}
+                    >
+                      <Text style={styles.startButtonText}>Jogar sozinho</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ) : (
                 <>
@@ -304,6 +487,8 @@ const MancalaGame = () => {
                       <Text style={styles.statusLabel}>Status:</Text>
                       <Text style={styles.statusText}>{gameStatus}</Text>
                     </View>
+                    {singlePlayer ? <Text style={styles.modeLabel}>Modo solo vs Groq IA</Text> : null}
+                    {aiThinking ? <Text style={styles.modeLabel}>A IA esta analisando a jogada...</Text> : null}
                     <Text style={styles.infoText}>{infoMessage}</Text>
                   </View>
 
@@ -465,6 +650,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 16,
   },
+  startButtonsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  startButtonHalf: {
+    flexGrow: 1,
+    flexBasis: 180,
+    marginHorizontal: 4,
+    marginTop: 8,
+  },
+  soloButton: {
+    minHeight: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#215B93',
+    borderWidth: 1,
+    borderColor: '#8FC3FF',
+    ...shadow,
+  },
+  startupNote: {
+    color: '#B6C2D8',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 6,
+  },
   buttonPressed: {
     opacity: 0.86,
     transform: [{ scale: 0.98 }],
@@ -493,6 +706,11 @@ const styles = StyleSheet.create({
   statusText: {
     color: '#F4C06D',
     fontWeight: '800',
+  },
+  modeLabel: {
+    color: '#B6E1FF',
+    fontWeight: '700',
+    marginBottom: 8,
   },
   infoText: {
     borderRadius: 14,

@@ -29,6 +29,19 @@ npm install
 npm start
 ```
 
+## Modo solo com Groq
+
+- Na tela inicial, use o botao `Jogar sozinho` para jogar contra a IA.
+- Defina a chave da API da Groq pela variavel de ambiente `EXPO_PUBLIC_GROQ_API_KEY`.
+- Sem essa chave, o jogo continua em modo solo usando uma estrategia local de fallback.
+
+Exemplo de configuracao no PowerShell (sessao atual):
+
+```powershell
+$env:EXPO_PUBLIC_GROQ_API_KEY = "sua_chave_aqui"
+npm start
+```
+
 ## Scripts
 
 ```bash
